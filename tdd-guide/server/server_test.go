@@ -13,7 +13,7 @@ import (
 type StubPlayerStore struct {
 	scores   map[string]int
 	winCalls []string
-	league   []Player
+	league   League
 }
 
 func (s *StubPlayerStore) GetPlayerScore(name string) int {
@@ -28,7 +28,7 @@ func (s *StubPlayerStore) RecordWin(name string) {
 	s.winCalls = append(s.winCalls, name)
 }
 
-func (s *StubPlayerStore) GetLeague() []Player {
+func (s *StubPlayerStore) GetLeague() League {
 	return s.league
 }
 
@@ -92,7 +92,7 @@ func TestPost(t *testing.T) {
 }
 
 func TestLeague(t *testing.T) {
-	wantedLeague := []Player{
+	wantedLeague := League{
 		{"Cleo", 32},
 		{"chris", 20},
 		{"Tiest", 14},
@@ -134,9 +134,10 @@ func assertStatus(t *testing.T, got, want int) {
 	}
 }
 
-func getLeagueFromResponse(t *testing.T, body io.Reader) []Player {
+func getLeagueFromResponse(t *testing.T, body io.Reader) League {
+	// league, _ = NewLeague(f.database)
 	t.Helper()
-	var got []Player
+	var got League
 
 	err := json.NewDecoder(body).Decode(&got)
 
@@ -147,7 +148,7 @@ func getLeagueFromResponse(t *testing.T, body io.Reader) []Player {
 	return got
 }
 
-func assertLeague(t *testing.T, got, want []Player) {
+func assertLeague(t *testing.T, got, want League) {
 	t.Helper()
 
 	if !reflect.DeepEqual(got, want) {

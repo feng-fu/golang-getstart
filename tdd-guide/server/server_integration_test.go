@@ -7,7 +7,12 @@ import (
 )
 
 func TestRecordingWinsAndRetrievingThem(t *testing.T) {
-	store := NewInMemoryPlayerStore()
+
+	database, cleanDatabase := createTempFile(t, "")
+	defer cleanDatabase()
+
+	store := &FileSystemStore{database}
+	// store := NewInMemoryPlayerStore()
 	server := NewPlayerServer(store)
 	player := "Pepper"
 	server.ServeHTTP(httptest.NewRecorder(), newScoreRequest(player, http.MethodPost))
@@ -28,7 +33,7 @@ func TestRecordingWinsAndRetrievingThem(t *testing.T) {
 
 		got := getLeagueFromResponse(t, response.Body)
 
-		want := []Player{
+		want := League{
 			{"Pepper", 3},
 		}
 
