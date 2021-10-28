@@ -1,4 +1,4 @@
-package server
+package main
 
 import (
 	"encoding/json"
@@ -9,6 +9,28 @@ import (
 	"reflect"
 	"testing"
 )
+
+type StubPlayerStore struct {
+	scores   map[string]int
+	winCalls []string
+	league   []Player
+}
+
+func (s *StubPlayerStore) GetPlayerScore(name string) int {
+	score, ok := s.scores[name]
+	if !ok {
+		return 0
+	}
+	return score
+}
+
+func (s *StubPlayerStore) RecordWin(name string) {
+	s.winCalls = append(s.winCalls, name)
+}
+
+func (s *StubPlayerStore) GetLeague() []Player {
+	return s.league
+}
 
 func TestGet(t *testing.T) {
 	store := StubPlayerStore{
@@ -69,36 +91,6 @@ func TestPost(t *testing.T) {
 	})
 }
 
-func TestRecordingWinsAndRetrievingThem(t *testing.T) {
-	store := NewInMemoryPlayerStore()
-	server := NewPlayerServer(store)
-	player := "Pepper"
-	server.ServeHTTP(httptest.NewRecorder(), newScoreRequest(player, http.MethodPost))
-	server.ServeHTTP(httptest.NewRecorder(), newScoreRequest(player, http.MethodPost))
-	server.ServeHTTP(httptest.NewRecorder(), newScoreRequest(player, http.MethodPost))
-	t.Run("get score", func(t *testing.T) {
-		response := httptest.NewRecorder()
-		server.ServeHTTP(response, newScoreRequest(player, http.MethodGet))
-		assertStatus(t, response.Code, http.StatusOK)
-		assertResponseBody(t, response.Body.String(), "3")
-	})
-
-	t.Run("get league", func(t *testing.T) {
-		response := httptest.NewRecorder()
-		request, _ := http.NewRequest(http.MethodGet, "/league", nil)
-		server.ServeHTTP(response, request)
-		assertStatus(t, response.Code, http.StatusOK)
-
-		got := getLeagueFromResponse(t, response.Body)
-
-		want := []Player{
-			{"Pepper", 3},
-		}
-
-		assertDeepEqual(t, got, want)
-	})
-}
-
 func TestLeague(t *testing.T) {
 	wantedLeague := []Player{
 		{"Cleo", 32},
@@ -118,28 +110,10 @@ func TestLeague(t *testing.T) {
 		got := getLeagueFromResponse(t, response.Body)
 
 		assertStatus(t, response.Code, http.StatusOK)
-		assertDeepEqual(t, got, wantedLeague)
+		assertLeague(t, got, wantedLeague)
 		assertContentType(t, response, jsonContentType)
 	})
 }
-
-// func TestFileSystemStore(t *testing.T) {
-// 	t.Run("/league from a reader", func(t *testing.T) {
-// 		database := strings.NewReader(`[
-// 			{"Name": "Cleo", "Wins": 10},
-// 			{"Name": "Chris", "Wins": 33}
-// 		]`)
-
-// 		store := FileSystemStore{database}
-// 		got := store.GetLeague()
-
-// 		want := []Player{
-// 			{"Cleo", 10},
-// 			{"Chris", 33},
-// 		}
-// 		assertLeague(t, got, want)
-// 	})
-// }
 
 func newScoreRequest(name string, method string) *http.Request {
 	request, _ := http.NewRequest(method, fmt.Sprintf("/players/%s", name), nil)
@@ -173,7 +147,7 @@ func getLeagueFromResponse(t *testing.T, body io.Reader) []Player {
 	return got
 }
 
-func assertDeepEqual(t *testing.T, got, want []Player) {
+func assertLeague(t *testing.T, got, want []Player) {
 	t.Helper()
 
 	if !reflect.DeepEqual(got, want) {
